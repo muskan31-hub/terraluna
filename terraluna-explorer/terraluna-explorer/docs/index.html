@@ -1,0 +1,1740 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TerraLuna Explorer – From Earth to Moon</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23050816'/%3E%3Ccircle cx='26' cy='34' r='16' fill='none' stroke='%2322d3ee' stroke-width='4'/%3E%3Ccircle cx='43' cy='24' r='9' fill='%238b5cf6'/%3E%3C/svg%3E" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+
+:root { color-scheme: dark; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: #e2e8f0;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background:
+    radial-gradient(1100px 600px at 80% -10%, rgba(139, 92, 246, 0.18), transparent 60%),
+    radial-gradient(900px 600px at -10% 20%, rgba(34, 211, 238, 0.12), transparent 60%),
+    linear-gradient(180deg, #050816 0%, #070c24 45%, #02030a 100%);
+  background-attachment: fixed;
+}
+
+.glass {
+  background: linear-gradient(145deg, rgba(30, 41, 90, 0.38), rgba(10, 16, 48, 0.5));
+  border: 1px solid rgba(148, 197, 255, 0.16);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-radius: 1rem;
+  box-shadow: 0 10px 40px rgba(2, 6, 23, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.glass-hover { transition: transform .25s ease, border-color .25s ease, box-shadow .25s ease; }
+.glass-hover:hover { transform: translateY(-3px); border-color: rgba(34, 211, 238, 0.45); box-shadow: 0 16px 50px rgba(34, 211, 238, 0.1); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  padding: .7rem 1.4rem; border-radius: 999px; font-weight: 600; font-size: .95rem;
+  transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+  cursor: pointer; border: 1px solid transparent; text-decoration: none;
+}
+.btn:hover { transform: translateY(-2px); }
+.btn-earth { background: linear-gradient(90deg, #0891b2, #3b82f6); color: white; box-shadow: 0 8px 30px rgba(34, 211, 238, 0.3); }
+.btn-moon { background: linear-gradient(90deg, #7c3aed, #a78bfa); color: white; box-shadow: 0 8px 30px rgba(139, 92, 246, 0.35); }
+.btn-ghost { background: rgba(255, 255, 255, 0.05); border-color: rgba(148, 197, 255, 0.25); color: #e2e8f0; }
+.btn-ghost:hover { background: rgba(255, 255, 255, 0.1); }
+
+.chip {
+  padding: .35rem .8rem; border-radius: 999px; font-size: .8rem; cursor: pointer;
+  border: 1px solid rgba(148, 197, 255, 0.22); background: rgba(255, 255, 255, 0.04); color: #cbd5e1;
+  transition: all .2s ease;
+}
+.chip:hover { border-color: rgba(34, 211, 238, 0.6); }
+.chip-on { background: rgba(34, 211, 238, 0.18); border-color: #22d3ee; color: #a5f3fc; }
+
+.field {
+  background: rgba(2, 6, 23, 0.6); border: 1px solid rgba(148, 197, 255, 0.25); color: #e2e8f0;
+  border-radius: .6rem; padding: .45rem .7rem; font-size: .85rem; outline: none;
+}
+.field:focus { border-color: #22d3ee; }
+
+.gradient-text { background: linear-gradient(90deg, #67e8f9, #93c5fd 45%, #c4b5fd); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+.planet-earth {
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.55), transparent 22%),
+    radial-gradient(circle at 60% 55%, #1e7a46 0 12%, transparent 13%),
+    radial-gradient(circle at 36% 62%, #2a8a52 0 9%, transparent 10%),
+    radial-gradient(circle at 70% 30%, #2a8a52 0 7%, transparent 8%),
+    radial-gradient(circle at 35% 30%, #3b9cf0, #0b4aa8 55%, #061a45 100%);
+  box-shadow: 0 0 80px rgba(59, 156, 240, 0.45), inset -30px -30px 60px rgba(0, 0, 20, 0.7);
+}
+.planet-moon {
+  background:
+    radial-gradient(circle at 62% 38%, rgba(60, 60, 70, 0.55) 0 7%, transparent 8%),
+    radial-gradient(circle at 36% 60%, rgba(60, 60, 70, 0.5) 0 10%, transparent 11%),
+    radial-gradient(circle at 70% 70%, rgba(60, 60, 70, 0.45) 0 5%, transparent 6%),
+    radial-gradient(circle at 34% 30%, #e5e7eb, #9ca3af 55%, #374151 100%);
+  box-shadow: 0 0 70px rgba(196, 181, 253, 0.3), inset -24px -24px 50px rgba(0, 0, 15, 0.75);
+}
+@keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-14px); } }
+.floaty { animation: floaty 7s ease-in-out infinite; }
+.floaty-slow { animation: floaty 10s ease-in-out infinite reverse; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner { width: 1.2rem; height: 1.2rem; border-radius: 50%; border: 2px solid rgba(34, 211, 238, 0.25); border-top-color: #22d3ee; animation: spin .8s linear infinite; }
+@keyframes fadeup { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.fadeup { animation: fadeup .5s ease both; }
+
+.map-box { height: 62vh; min-height: 380px; border-radius: 1rem; overflow: hidden; border: 1px solid rgba(148, 197, 255, 0.2); }
+.leaflet-container { background: #02030a; font-family: inherit; }
+.leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #0b1230; color: #e2e8f0; border: 1px solid rgba(34, 211, 238, 0.3); }
+.leaflet-control-attribution { background: rgba(2, 6, 23, 0.7) !important; color: #94a3b8 !important; }
+.leaflet-control-attribution a { color: #67e8f9 !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .floaty, .floaty-slow, .fadeup { animation: none; }
+  html { scroll-behavior: auto; }
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<noscript>TerraLuna Explorer needs JavaScript enabled.</noscript>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-is@18.3.1/umd/react-is.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js" crossorigin></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"></script>
+<script type="text/babel" data-presets="react">
+(function () {
+
+const { useState, useEffect, useMemo, useRef } = React;
+const { createRoot } = ReactDOM;
+const { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell, Legend } = Recharts;
+const L = window.L;
+
+// ---- lib/data.js ----
+// Static reference data for TerraLuna Explorer.
+// Every number here is a published literature value (cited) or a coordinate used to place a marker.
+// Nothing in this file is a live satellite observation. Live data is fetched in lib/api.js.
+
+const SOURCES = [
+  { id: 'earthdata', name: 'NASA Earthdata Search', agency: 'NASA', url: 'https://search.earthdata.nasa.gov', access: 'live',
+    desc: 'Dataset discovery across NASA Earth science archives. TerraLuna queries the public CMR API live from the Earth Explorer page.' },
+  { id: 'worldview', name: 'NASA Worldview / GIBS', agency: 'NASA', url: 'https://worldview.earthdata.nasa.gov', access: 'live',
+    desc: 'Global Imagery Browse Services (GIBS) tiles power the Earth Explorer map: MODIS, IMERG and more.' },
+  { id: 'pds', name: 'NASA Planetary Data System', agency: 'NASA', url: 'https://pds.nasa.gov', access: 'link',
+    desc: 'Official archive of planetary mission data, including Lunar Reconnaissance Orbiter products. Linked, not queried live.' },
+  { id: 'lro', name: 'Lunar Reconnaissance Orbiter (LRO)', agency: 'NASA', url: 'https://science.nasa.gov/mission/lro/', access: 'live',
+    desc: 'Lunar mosaics and elevation layers are shown through NASA Moon Trek tile services on the Moon Explorer page.' },
+  { id: 'diviner', name: 'LRO Diviner Lunar Radiometer', agency: 'NASA', url: 'https://pds-geosciences.wustl.edu/missions/lro/diviner.htm', access: 'link',
+    desc: 'Thermal infrared radiometer that measured lunar surface temperatures. Literature values are shown; raw products are linked.' },
+  { id: 'copernicus', name: 'Copernicus Data Space Ecosystem', agency: 'ESA', url: 'https://dataspace.copernicus.eu', access: 'link',
+    desc: 'Sentinel mission archive. Searching is available through the optional FastAPI backend; the website links to the browser.' },
+  { id: 'radarsat', name: 'RADARSAT / RADARSAT Constellation Mission', agency: 'CSA', url: 'https://www.asc-csa.gc.ca/eng/satellites/radarsat/', access: 'link',
+    desc: 'Canadian synthetic aperture radar. Useful for sea ice, floods and surface change. Some products require registration.' },
+  { id: 'gportal', name: 'G-Portal', agency: 'JAXA', url: 'https://gportal.jaxa.jp/gpr/', access: 'link',
+    desc: 'JAXA satellite data portal (e.g. GCOM-W, GCOM-C, GPM/DPR). Account registration is required for downloads.' },
+];
+
+// NASA GIBS layers (EPSG:3857 WMTS). Layer IDs and matrix sets follow the GIBS catalogue.
+// If GIBS renames a layer, the map shows an error banner rather than silently failing.
+const GIBS_BASE = { layer: 'BlueMarble_ShadedRelief_Bathymetry', matrix: 'GoogleMapsCompatible_Level8', ext: 'jpeg', maxZoom: 8, timeBased: false };
+
+const GIBS_LAYERS = [
+  { id: 'truecolor', label: 'True colour imagery', layer: 'MODIS_Terra_CorrectedReflectance_TrueColor', matrix: 'GoogleMapsCompatible_Level9', ext: 'jpg', maxZoom: 9, timeBased: true,
+    unit: 'reflectance (visual)', instrument: 'Terra / MODIS', theme: 'Imagery', desc: 'Natural-colour view of Earth as a camera in orbit would see it.' },
+  { id: 'lst', label: 'Land surface temperature (day)', layer: 'MODIS_Terra_Land_Surface_Temp_Day', matrix: 'GoogleMapsCompatible_Level7', ext: 'png', maxZoom: 7, timeBased: true,
+    unit: 'kelvin (K)', instrument: 'Terra / MODIS', theme: 'Temperature', desc: 'Skin temperature of the land surface, not the air temperature measured by weather stations.' },
+  { id: 'ndvi', label: 'Vegetation (NDVI, 8-day)', layer: 'MODIS_Terra_NDVI_8Day', matrix: 'GoogleMapsCompatible_Level9', ext: 'png', maxZoom: 9, timeBased: true,
+    unit: 'index (unitless, -1 to 1)', instrument: 'Terra / MODIS', theme: 'Vegetation', desc: 'Greenness index: higher values indicate denser, healthier vegetation.' },
+  { id: 'rain', label: 'Rainfall rate (IMERG)', layer: 'IMERG_Precipitation_Rate', matrix: 'GoogleMapsCompatible_Level6', ext: 'png', maxZoom: 6, timeBased: true,
+    unit: 'mm per hour', instrument: 'GPM constellation / IMERG', theme: 'Rainfall', desc: 'Merged multi-satellite precipitation estimate, updated every 30 minutes.' },
+  { id: 'snow', label: 'Snow and ice cover (NDSI)', layer: 'MODIS_Terra_NDSI_Snow_Cover', matrix: 'GoogleMapsCompatible_Level8', ext: 'png', maxZoom: 8, timeBased: true,
+    unit: 'NDSI snow cover (%)', instrument: 'Terra / MODIS', theme: 'Ice', desc: 'Fraction of each pixel covered by snow. Cloud cover can hide the surface.' },
+];
+
+const EARTH_PRESETS = [
+  { name: 'Antarctic Plateau (Dome Argus)', lat: -80.37, lon: 77.35, why: 'Among the coldest places on Earth' },
+  { name: 'Vostok Station', lat: -78.46, lon: 106.84, why: 'WMO record low air temperature, -89.2 °C (1983)' },
+  { name: 'Death Valley', lat: 36.46, lon: -116.87, why: 'WMO record high air temperature, 56.7 °C (1913)' },
+  { name: 'Lut Desert, Iran', lat: 30.5, lon: 59.0, why: 'Very hot, barren land surface' },
+  { name: 'Greenland Ice Sheet', lat: 72.6, lon: -38.5, why: 'Ice sheet environment' },
+  { name: 'Atacama Desert', lat: -24.5, lon: -69.25, why: 'One of the driest deserts on Earth' },
+  { name: 'Amazon Basin', lat: -3.1, lon: -60.0, why: 'Dense vegetation, heavy rainfall' },
+  { name: 'Sahara Desert', lat: 23.4, lon: 12.0, why: 'Large hot desert' },
+];
+
+// Moon Trek WMTS tile services (geographic projection). Verified patterns may change; map shows an error banner on failure.
+const MOON_LAYERS = [
+  { id: 'wac', label: 'LRO WAC global mosaic (imagery)', url: 'https://trek.nasa.gov/tiles/Moon/EQ/LRO_WAC_Mosaic_Global_303ppd_v02/1.0.0/default/default028mm/{z}/{y}/{x}.jpg',
+    maxNative: 7, desc: 'Wide Angle Camera mosaic from the Lunar Reconnaissance Orbiter, roughly 100 m per pixel.' },
+  { id: 'lola', label: 'LRO LOLA elevation (colour-shaded)', url: 'https://trek.nasa.gov/tiles/Moon/EQ/LRO_LOLA_ClrShade_Global_128ppd_v04/1.0.0/default/default028mm/{z}/{y}/{x}.jpg',
+    maxNative: 6, desc: 'Lunar Orbiter Laser Altimeter topography, colour-shaded by height.' },
+];
+
+// Approximate crater centres (IAU gazetteer, rounded) and diameters. Used only to place markers.
+const MOON_SITES = [
+  { name: 'Shackleton', lat: -89.9, lon: 129.8, km: 21, note: 'Sits almost exactly on the south pole. Its interior is permanently shadowed.' },
+  { name: 'Cabeus', lat: -84.9, lon: -35.5, km: 98, note: 'Target of the 2009 LCROSS impact. Ejecta analysis reported water (5.6 ± 2.9 % by mass, Colaprete et al. 2010).' },
+  { name: 'Shoemaker', lat: -88.1, lon: 44.9, km: 51, note: 'Large polar crater with permanently shadowed floor regions.' },
+  { name: 'Faustini', lat: -87.3, lon: 77.0, km: 39, note: 'Polar crater with permanently shadowed floor regions.' },
+  { name: 'Haworth', lat: -87.5, lon: -5.0, km: 51, note: 'Polar crater with permanently shadowed floor regions.' },
+  { name: 'de Gerlache', lat: -88.5, lon: -87.1, km: 32, note: 'Polar crater with permanently shadowed floor regions.' },
+];
+
+// Literature-cited temperature extremes (kelvin). kind: measured | derived.
+const TEMP_EXTREMES = [
+  { key: 'earthLow', label: 'Earth record low (air)', k: 183.95, body: 'Earth', kind: 'measured', cite: 'WMO: -89.2 °C, Vostok Station, 21 July 1983' },
+  { key: 'earthHigh', label: 'Earth record high (air)', k: 329.85, body: 'Earth', kind: 'measured', cite: 'WMO: 56.7 °C, Furnace Creek, 10 July 1913' },
+  { key: 'moonPSR', label: 'Moon polar shadow (coldest)', k: 25, body: 'Moon', kind: 'measured', cite: 'LRO Diviner, ~25 K in permanently shadowed craters (Paige et al. 2010, Science)' },
+  { key: 'moonNight', label: 'Moon equator, night', k: 95, body: 'Moon', kind: 'measured', cite: 'LRO Diviner, ~95 K (Williams et al. 2017, Icarus)' },
+  { key: 'moonNoon', label: 'Moon equator, noon', k: 390, body: 'Moon', kind: 'measured', cite: 'LRO Diviner, roughly 390 K (Williams et al. 2017, Icarus)' },
+];
+
+const ICE_STABILITY_K = 110; // approx. surface temperature below which water ice persists over geologic time (Paige et al. 2010)
+
+const COMPARE_ROWS = [
+  { param: 'Hottest temperature recorded', earth: '56.7 °C air (WMO, 1913)', moon: '~390 K (~117 °C) surface, equatorial noon', kind: 'measured',
+    note: 'Earth values are air temperatures at weather stations; the Moon value is surface temperature from Diviner infrared. They are different quantities.' },
+  { param: 'Coldest temperature recorded', earth: '-89.2 °C air (WMO, 1983); -93.2 °C satellite-derived surface (Scambos et al. 2018)', moon: '~25 K (~-248 °C) in polar permanently shadowed craters', kind: 'measured',
+    note: 'The Moon\'s polar craters are colder than any natural location measured on Earth.' },
+  { param: 'Equatorial day-night swing', earth: 'Moderated by atmosphere and oceans', moon: '~95 K at night to ~390 K at noon (about 295 K swing)', kind: 'derived',
+    note: 'Swing is computed from the two measured Moon values. No Earth number is claimed here.' },
+  { param: 'Atmosphere', earth: 'About 101 kPa at sea level', moon: 'Virtually none (surface-bounded exosphere)', kind: 'measured', note: 'No atmosphere means no wind or heat transport, so temperature follows sunlight almost directly.' },
+  { param: 'Gravity', earth: '9.81 m/s²', moon: '1.62 m/s²', kind: 'measured', note: '' },
+  { param: 'Axial tilt', earth: '23.4°', moon: '1.5°', kind: 'measured', note: 'The Moon\'s tiny tilt keeps some polar crater floors out of direct sunlight.' },
+  { param: 'Length of a day', earth: '24 hours', moon: '~29.5 Earth days', kind: 'measured', note: '' },
+  { param: 'Water', earth: 'Oceans, ice sheets, clouds, rain', moon: 'Water ice reported in some polar shadows (e.g. LCROSS at Cabeus)', kind: 'measured',
+    note: 'How much ice exists, where, and how it got there is still debated.' },
+  { param: 'Why polar craters stay cold', earth: '-', moon: 'Permanent shadow + no atmosphere: heat cannot arrive by sunlight or air', kind: 'interpretation',
+    note: 'This is the accepted scientific explanation, not a direct measurement.' },
+  { param: 'Could the ice be stable?', earth: '-', moon: 'Below ~110 K, surface ice is expected to persist over geologic time', kind: 'interpretation',
+    note: 'Threshold from thermal stability modelling (Paige et al. 2010).' },
+];
+
+// ---- lib/api.js ----
+// Live public APIs used directly from the browser (CORS-enabled, no API key):
+//   - NASA GIBS WMTS tiles
+//   - NASA POWER monthly point API (https://power.larc.nasa.gov)
+//   - NASA CMR collection search (https://cmr.earthdata.nasa.gov)
+
+function isoDate(d) {
+  return d.toISOString().slice(0, 10);
+}
+
+function defaultDate() {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - 4); // GIBS daily products are typically available within a few days
+  return isoDate(d);
+}
+
+function yearAgo(dateStr) {
+  const d = new Date(dateStr + 'T00:00:00Z');
+  d.setUTCFullYear(d.getUTCFullYear() - 1);
+  return isoDate(d);
+}
+
+function gibsUrl(l, date) {
+  const t = l.timeBased ? date : 'default';
+  return `https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/${l.layer}/default/${t}/${l.matrix}/{z}/{y}/{x}.${l.ext}`;
+}
+
+function worldviewLink(l, date) {
+  return `https://worldview.earthdata.nasa.gov/?l=${l.layer}&t=${date}`;
+}
+
+async function getJson(url, timeoutMs = 25000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`Request failed (${res.status} ${res.statusText})`);
+    return await res.json();
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('The request timed out. The data service may be busy.');
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// NASA POWER monthly climatology at a point. Returns rows of { date, year, month, t2m, precip }.
+async function fetchPower(lat, lon, startYear = 2015, endYear = 2024) {
+  const url =
+    'https://power.larc.nasa.gov/api/temporal/monthly/point' +
+    `?parameters=T2M,PRECTOTCORR&community=RE&longitude=${lon}&latitude=${lat}` +
+    `&start=${startYear}&end=${endYear}&format=JSON`;
+  const json = await getJson(url);
+  const p = json?.properties?.parameter;
+  if (!p || !p.T2M) throw new Error('NASA POWER returned no data for this location.');
+  const rows = [];
+  for (const key of Object.keys(p.T2M)) {
+    const year = Number(key.slice(0, 4));
+    const month = Number(key.slice(4));
+    if (month < 1 || month > 12) continue; // month 13 is the annual mean
+    const t = p.T2M[key];
+    const r = p.PRECTOTCORR ? p.PRECTOTCORR[key] : null;
+    rows.push({
+      date: `${year}-${String(month).padStart(2, '0')}`,
+      year,
+      month,
+      t2m: t === -999 || t == null ? null : Number(t),
+      precip: r === -999 || r == null ? null : Number(r),
+    });
+  }
+  const units = json?.parameters || {};
+  return {
+    rows,
+    meta: {
+      dataset: 'NASA POWER Monthly (MERRA-2 / CERES-based, community RE)',
+      source: 'https://power.larc.nasa.gov',
+      apiUrl: url,
+      startYear,
+      endYear,
+      lat,
+      lon,
+      units: {
+        t2m: units.T2M?.units || 'C',
+        precip: units.PRECTOTCORR?.units || 'mm/day',
+      },
+      retrieved: new Date().toISOString(),
+    },
+  };
+}
+
+// NASA CMR collection search (the engine behind Earthdata Search).
+async function searchCmr(keyword) {
+  const url = `https://cmr.earthdata.nasa.gov/search/collections.json?keyword=${encodeURIComponent(keyword)}&page_size=8&sort_key=-usage_score`;
+  const json = await getJson(url);
+  const entries = json?.feed?.entry || [];
+  return entries.map((e) => ({
+    id: e.id,
+    title: e.title,
+    shortName: e.short_name,
+    version: e.version_id,
+    center: e.data_center,
+    start: e.time_start ? e.time_start.slice(0, 10) : null,
+    end: e.time_end ? e.time_end.slice(0, 10) : 'ongoing',
+    link: `https://cmr.earthdata.nasa.gov/search/concepts/${e.id}.html`,
+    search: `https://search.earthdata.nasa.gov/search?q=${encodeURIComponent(e.short_name || e.title)}`,
+  }));
+}
+
+function mean(arr) {
+  const v = arr.filter((x) => x != null && !Number.isNaN(x));
+  return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+}
+function minOf(arr) {
+  const v = arr.filter((x) => x != null && !Number.isNaN(x));
+  return v.length ? Math.min(...v) : null;
+}
+function maxOf(arr) {
+  const v = arr.filter((x) => x != null && !Number.isNaN(x));
+  return v.length ? Math.max(...v) : null;
+}
+
+function toCsv(rows, meta) {
+  const head = [
+    `# ${meta.dataset}`,
+    `# Source: ${meta.source}`,
+    `# Location: lat ${meta.lat}, lon ${meta.lon}`,
+    `# Period: ${meta.startYear}-${meta.endYear}`,
+    `# Units: T2M (${meta.units.t2m}), PRECTOTCORR (${meta.units.precip})`,
+    `# Retrieved: ${meta.retrieved}`,
+    'month,T2M,PRECTOTCORR',
+  ];
+  const lines = rows.map((r) => `${r.date},${r.t2m ?? ''},${r.precip ?? ''}`);
+  return head.concat(lines).join('\n');
+}
+
+function downloadText(filename, text, mime = 'text/csv') {
+  const blob = new Blob([text], { type: mime });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ---- lib/kb.js ----
+// Curated, source-backed knowledge base for the AI Science Assistant.
+// The assistant ONLY answers from these entries (and from data the user has loaded).
+// If nothing matches it says so, so it cannot invent measurements.
+
+const KB = [
+  { id: 'diviner', kw: ['diviner', 'lunar radiometer', 'moon temperature', 'lunar temperature', 'measure temperature moon'],
+    a: 'Diviner is a thermal infrared radiometer on NASA\'s Lunar Reconnaissance Orbiter. It measures the heat radiated by the lunar surface, which is converted to surface temperature. It has mapped the Moon\'s day, night and polar temperatures since 2009.',
+    src: [['LRO Diviner at PDS Geosciences', 'https://pds-geosciences.wustl.edu/missions/lro/diviner.htm']] },
+  { id: 'moon-range', kw: ['moon hot', 'moon cold', 'lunar temperature range', 'how hot', 'how cold', 'equator', 'noon'],
+    a: 'Diviner found equatorial surface temperatures of roughly 95 K at night and around 390 K at noon (Williams et al. 2017). That is a swing of about 295 K, which this site derives from those two published values.',
+    src: [['Williams et al. 2017, Icarus', 'https://doi.org/10.1016/j.icarus.2016.08.012']] },
+  { id: 'psr', kw: ['permanently shadowed', 'psr', 'polar crater', 'shadow', 'why cold', 'cold trap', 'polar'],
+    a: 'The Moon\'s axis is tilted only about 1.5°, so the Sun stays very low near the poles. The floors of some deep polar craters never receive direct sunlight. With no atmosphere to carry heat, they stay extremely cold. Diviner reported temperatures near 25 K in some of them (Paige et al. 2010). The explanation of why they are cold is an interpretation built on those measurements.',
+    src: [['Paige et al. 2010, Science', 'https://doi.org/10.1126/science.1187726']] },
+  { id: 'ice-stability', kw: ['ice stable', 'ice stability', '110', 'water ice', 'frozen', 'volatile', 'cold trap temperature'],
+    a: 'Thermal models suggest water ice can persist at the surface over geologic time where temperatures stay below about 110 K. That threshold is a modelled interpretation, not a direct detection of ice.',
+    src: [['Paige et al. 2010, Science', 'https://doi.org/10.1126/science.1187726']] },
+  { id: 'lcross', kw: ['lcross', 'cabeus', 'water on the moon', 'moon water', 'ice on the moon', 'detected water'],
+    a: 'In 2009 NASA\'s LCROSS mission impacted the Cabeus crater and analysed the plume. Researchers reported water at about 5.6 ± 2.9 % by mass in the ejecta (Colaprete et al. 2010). It is one site, and how widespread lunar ice is remains an active research question.',
+    src: [['Colaprete et al. 2010, Science', 'https://doi.org/10.1126/science.1186986']] },
+  { id: 'lro', kw: ['lro', 'lunar reconnaissance', 'orbiter', 'lola', 'lroc', 'wac'],
+    a: 'The Lunar Reconnaissance Orbiter launched in 2009. Its instruments include cameras (LROC), the laser altimeter LOLA that maps topography, and Diviner for temperature. This site shows a camera mosaic and elevation layer through NASA Moon Trek.',
+    src: [['NASA LRO mission', 'https://science.nasa.gov/mission/lro/'], ['NASA Moon Trek', 'https://trek.nasa.gov/moon/']] },
+  { id: 'pds', kw: ['pds', 'planetary data system', 'archive', 'planetary data'],
+    a: 'The Planetary Data System is NASA\'s official archive for planetary mission data. LRO data, including Diviner products, are published through the PDS Geosciences Node.',
+    src: [['NASA PDS', 'https://pds.nasa.gov']] },
+  { id: 'lst', kw: ['land surface temperature', 'lst', 'skin temperature', 'surface temperature earth', 'modis temperature'],
+    a: 'Land surface temperature (LST) from MODIS is the temperature of the ground or canopy "skin" seen by infrared sensors. It can differ a lot from the air temperature at 2 m that weather stations report, especially on bare, sunlit ground.',
+    src: [['NASA GIBS layer catalogue', 'https://nasa-gibs.github.io/gibs-api-docs/available-visualizations/']] },
+  { id: 'air-vs-surface', kw: ['air temperature', 'weather station', 't2m', 'difference between air', 'compare temperature'],
+    a: 'Air temperature (such as NASA POWER T2M or WMO station records) and surface temperature (such as MODIS LST or Diviner) are different quantities. This site labels which one each number is and avoids treating them as interchangeable.',
+    src: [['NASA POWER', 'https://power.larc.nasa.gov']] },
+  { id: 'ndvi', kw: ['ndvi', 'vegetation', 'green', 'greenness', 'plants'],
+    a: 'NDVI compares how much red and near-infrared light a surface reflects. Healthy plants absorb red light and reflect near-infrared, giving high NDVI. Values near zero mean bare ground, and negative values usually mean water, snow or cloud.',
+    src: [['NASA Earth Observatory: NDVI', 'https://earthobservatory.nasa.gov/features/MeasuringVegetation']] },
+  { id: 'imerg', kw: ['imerg', 'rainfall', 'rain', 'precipitation', 'gpm'],
+    a: 'IMERG merges data from the international GPM constellation of satellites into a global precipitation estimate every 30 minutes. It is an estimate from satellite sensors and calibrated with rain gauges, not a direct gauge measurement everywhere.',
+    src: [['NASA GPM IMERG', 'https://gpm.nasa.gov/data/imerg']] },
+  { id: 'snow', kw: ['snow', 'ice cover', 'ndsi', 'sea ice', 'glacier', 'ice sheet'],
+    a: 'The NDSI snow layer estimates how much of each pixel is snow-covered from MODIS reflectance. Clouds and polar night can hide the surface, so gaps in the map are not necessarily "no snow".',
+    src: [['NASA NSIDC', 'https://nsidc.org/']] },
+  { id: 'antarctic-cold', kw: ['coldest earth', 'coldest place', 'antarctica', 'vostok', '93', 'record low'],
+    a: 'The WMO-recognised lowest air temperature is -89.2 °C at Vostok Station (1983). Satellite measurements of the East Antarctic Plateau surface reached about -93.2 °C (Scambos et al. 2018). Even that is far warmer than the roughly 25 K (-248 °C) reported in lunar polar craters.',
+    src: [['WMO Extremes Archive', 'https://wmo.asu.edu/'], ['Scambos et al. 2018, Geophys. Res. Lett.', 'https://doi.org/10.1029/2018GL079421']] },
+  { id: 'hottest', kw: ['hottest', 'death valley', 'record high', '56.7', 'lut'],
+    a: 'The WMO-recognised highest air temperature is 56.7 °C at Furnace Creek, Death Valley (1913). Land surface temperatures in deserts can be higher than air temperatures, but those satellite values are a different quantity.',
+    src: [['WMO Extremes Archive', 'https://wmo.asu.edu/']] },
+  { id: 'copernicus', kw: ['copernicus', 'sentinel', 'esa', 'european'],
+    a: 'The Copernicus Data Space Ecosystem is ESA\'s open archive for the Sentinel satellites (radar, optical, atmosphere). It is linked from this site, and a public catalogue search is available through the optional FastAPI backend.',
+    src: [['Copernicus Data Space Ecosystem', 'https://dataspace.copernicus.eu']] },
+  { id: 'radarsat', kw: ['radarsat', 'sar', 'radar', 'csa', 'canadian', 'rcm'],
+    a: 'RADARSAT and the RADARSAT Constellation Mission are Canadian Space Agency radar satellites. Radar sees through clouds and darkness, which makes it useful for sea ice, floods and ground change. Radar is also used at the lunar poles, where Mini-RF on LRO studied surface roughness.',
+    src: [['CSA RADARSAT', 'https://www.asc-csa.gc.ca/eng/satellites/radarsat/']] },
+  { id: 'jaxa', kw: ['jaxa', 'g-portal', 'gportal', 'japan', 'gcom'],
+    a: 'JAXA\'s G-Portal gives access to Japanese Earth observation data such as GCOM-W (water and sea ice) and GCOM-C (climate). Account registration is required to download, so this site links to it.',
+    src: [['JAXA G-Portal', 'https://gportal.jaxa.jp/gpr/']] },
+  { id: 'worldview', kw: ['worldview', 'gibs', 'tiles', 'earthdata search', 'cmr', 'find data'],
+    a: 'NASA Worldview is a browser for satellite imagery built on GIBS tile services, which power the Earth Explorer map here. Earthdata Search finds datasets across NASA archives, and this site queries its public CMR API live.',
+    src: [['NASA Worldview', 'https://worldview.earthdata.nasa.gov'], ['NASA Earthdata Search', 'https://search.earthdata.nasa.gov']] },
+  { id: 'honesty', kw: ['demo', 'sample', 'fake', 'real data', 'trust', 'accurate', 'limitation', 'label'],
+    a: 'Maps and the Dashboard time series are fetched live from NASA services. Moon temperature extremes and Earth records are published literature values, each cited. The day/night curve on the Compare page is an illustrative physical model and is labelled as such. No satellite observation on this site is invented.',
+    src: [['About and References', '#/about']] },
+];
+
+const STOP = new Set(['the', 'a', 'an', 'is', 'are', 'of', 'in', 'on', 'to', 'and', 'what', 'how', 'why', 'does', 'do', 'it', 'me', 'tell', 'about', 'can', 'you', 'for', 'with', 'this', 'that']);
+
+function tokens(text) {
+  return text.toLowerCase().replace(/[^a-z0-9.\-\s]/g, ' ').split(/\s+/).filter((t) => t && !STOP.has(t));
+}
+
+function answerFromKb(question) {
+  const q = question.toLowerCase();
+  const toks = tokens(question);
+  let best = null;
+  let bestScore = 0;
+  for (const e of KB) {
+    let s = 0;
+    for (const k of e.kw) {
+      if (q.includes(k)) s += k.includes(' ') ? 3 : 2;
+      else if (toks.some((t) => t.length > 3 && k.includes(t))) s += 1;
+    }
+    if (s > bestScore) { bestScore = s; best = e; }
+  }
+  return bestScore >= 2 ? best : null;
+}
+
+// ---- components/ui.jsx ----
+
+function Logo({ size = 34 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 64 64" aria-hidden="true">
+      <defs>
+        <linearGradient id="tl-g" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#22d3ee" />
+          <stop offset="1" stopColor="#8b5cf6" />
+        </linearGradient>
+      </defs>
+      <circle cx="26" cy="34" r="16" fill="none" stroke="url(#tl-g)" strokeWidth="4" />
+      <ellipse cx="26" cy="34" rx="16" ry="6" fill="none" stroke="#22d3ee" strokeOpacity=".5" strokeWidth="1.5" />
+      <circle cx="43" cy="24" r="9" fill="url(#tl-g)" />
+      <circle cx="40" cy="22" r="1.8" fill="#0b1230" opacity=".5" />
+      <circle cx="46" cy="27" r="1.3" fill="#0b1230" opacity=".5" />
+    </svg>
+  );
+}
+
+function Starfield() {
+  const ref = useRef(null);
+  useEffect(() => {
+    const c = ref.current;
+    const ctx = c.getContext('2d');
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let raf;
+    let w = 0;
+    let h = 0;
+    let stars = [];
+    const init = () => {
+      w = c.width = window.innerWidth;
+      h = c.height = window.innerHeight;
+      const n = Math.min(260, Math.floor((w * h) / 6500));
+      stars = Array.from({ length: n }, () => ({
+        x: Math.random() * w, y: Math.random() * h, r: Math.random() * 1.3 + 0.2,
+        p: Math.random() * 6.28, s: Math.random() * 0.02 + 0.005, d: Math.random() * 0.12 + 0.02,
+      }));
+    };
+    const draw = () => {
+      ctx.clearRect(0, 0, w, h);
+      for (const s of stars) {
+        if (!reduce) { s.p += s.s; s.y += s.d * 0.12; if (s.y > h) s.y = 0; }
+        ctx.globalAlpha = 0.3 + 0.7 * Math.abs(Math.sin(s.p));
+        ctx.fillStyle = '#cfe8ff';
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, s.r, 0, 6.283);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      if (!reduce) raf = requestAnimationFrame(draw);
+    };
+    init();
+    draw();
+    window.addEventListener('resize', init);
+    return () => { cancelAnimationFrame(raf); window.removeEventListener('resize', init); };
+  }, []);
+  return <canvas ref={ref} className="fixed inset-0 -z-10 pointer-events-none" aria-hidden="true" />;
+}
+
+function Glass({ className = '', hover = false, children }) {
+  return <div className={`glass ${hover ? 'glass-hover' : ''} ${className}`}>{children}</div>;
+}
+
+function Loader({ label = 'Loading…' }) {
+  return (
+    <div className="flex items-center gap-3 text-sm text-cyan-200" role="status" aria-live="polite">
+      <span className="spinner" />
+      <span>{label}</span>
+    </div>
+  );
+}
+
+function ErrorBanner({ title = 'Something went wrong', children, onRetry }) {
+  return (
+    <div className="rounded-xl border border-amber-400/40 bg-amber-500/10 p-4 text-sm text-amber-100" role="alert">
+      <div className="font-semibold text-amber-200">{title}</div>
+      <div className="mt-1 text-amber-100/90">{children}</div>
+      {onRetry && (
+        <button className="chip chip-on mt-3" onClick={onRetry}>Try again</button>
+      )}
+    </div>
+  );
+}
+
+const BADGES = {
+  measured: ['Measured observation', 'border-emerald-400/50 bg-emerald-500/10 text-emerald-200'],
+  derived: ['Derived from measurements', 'border-sky-400/50 bg-sky-500/10 text-sky-200'],
+  interpretation: ['Scientific interpretation', 'border-violet-400/50 bg-violet-500/10 text-violet-200'],
+  model: ['Illustrative model', 'border-amber-400/50 bg-amber-500/10 text-amber-200'],
+  live: ['Live data', 'border-cyan-400/50 bg-cyan-500/10 text-cyan-200'],
+  link: ['Link only', 'border-slate-400/40 bg-slate-500/10 text-slate-300'],
+};
+
+function Badge({ kind }) {
+  const b = BADGES[kind] || BADGES.link;
+  return <span className={`inline-block whitespace-nowrap rounded-full border px-2.5 py-0.5 text-[11px] font-medium ${b[1]}`}>{b[0]}</span>;
+}
+
+function SectionTitle({ eyebrow, title, children }) {
+  return (
+    <div className="mb-6 fadeup">
+      {eyebrow && <div className="text-xs font-semibold uppercase tracking-[0.25em] text-cyan-300/80">{eyebrow}</div>}
+      <h1 className="mt-1 text-3xl font-bold text-white sm:text-4xl">{title}</h1>
+      {children && <p className="mt-3 max-w-3xl text-slate-300">{children}</p>}
+    </div>
+  );
+}
+
+function Planet({ kind, className = '' }) {
+  return <div className={`rounded-full ${kind === 'earth' ? 'planet-earth' : 'planet-moon'} ${className}`} aria-hidden="true" />;
+}
+
+function ExtLink({ href, children, className = '' }) {
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={`text-cyan-300 underline decoration-cyan-300/40 underline-offset-2 hover:text-cyan-200 ${className}`}>
+      {children}
+    </a>
+  );
+}
+
+const CHART = { cyan: '#22d3ee', violet: '#a78bfa', blue: '#60a5fa', amber: '#fbbf24', grid: '#1e293b', text: '#94a3b8' };
+
+// ---- pages/Home.jsx ----
+
+const FEATURES = [
+  { href: '#/earth', title: 'Earth Explorer', text: 'Browse live NASA satellite imagery of temperature, vegetation, rainfall and ice, and jump to extreme environments.' },
+  { href: '#/moon', title: 'Moon Explorer', text: 'Fly over LRO imagery and elevation, and examine the polar craters where sunlight never reaches.' },
+  { href: '#/compare', title: 'Earth vs Moon', text: 'Side-by-side comparison with charts. Every statement is tagged as measured, derived, or interpretation.' },
+  { href: '#/dashboard', title: 'Data Dashboard', text: 'Pull NASA POWER climate data for any point on Earth, with units, dates, location and download.' },
+  { href: '#/assistant', title: 'AI Science Assistant', text: 'Ask plain-language questions. Answers come only from cited sources, never invented numbers.' },
+  { href: '#/about', title: 'About & References', text: 'The problem, the approach, and full attribution for every dataset and agency.' },
+];
+
+function Home() {
+  return (
+    <div>
+      <section className="relative grid items-center gap-10 py-10 md:grid-cols-2 md:py-16">
+        <div className="fadeup">
+          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-xs text-cyan-200">
+            NASA Space Apps Challenge · Open satellite data
+          </div>
+          <h1 className="text-4xl font-extrabold leading-tight text-white sm:text-5xl lg:text-6xl">
+            One Planet.<br />Two Worlds.<br /><span className="gradient-text">Endless Discoveries.</span>
+          </h1>
+          <p className="mt-5 max-w-xl text-lg text-slate-300">
+            TerraLuna Explorer places Earth's most extreme places beside the Moon's polar craters, using open data from NASA, ESA, CSA and JAXA, so you can see how two worlds heat, freeze and hold water.
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <a href="#/earth" className="btn btn-earth">Explore Earth</a>
+            <a href="#/moon" className="btn btn-moon">Explore Moon</a>
+            <a href="#/compare" className="btn btn-ghost">Compare them</a>
+          </div>
+        </div>
+
+        <div className="relative mx-auto h-72 w-full max-w-md sm:h-96" aria-label="Illustration of Earth and the Moon">
+          <Planet kind="earth" className="floaty absolute left-2 top-4 h-52 w-52 sm:h-72 sm:w-72" />
+          <Planet kind="moon" className="floaty-slow absolute bottom-2 right-2 h-24 w-24 sm:h-36 sm:w-36" />
+          <div className="absolute left-1/2 top-1/2 h-px w-2/3 -translate-x-1/2 rotate-[-12deg] border-t border-dashed border-cyan-300/30" />
+        </div>
+      </section>
+
+      <section className="my-6 grid gap-4 md:grid-cols-3">
+        <Glass className="p-5">
+          <div className="text-sm font-semibold text-cyan-300">The question</div>
+          <p className="mt-2 text-sm text-slate-300">Earth and the Moon both have places that are brutally cold or hot. How alike are they, really, and where do they differ?</p>
+        </Glass>
+        <Glass className="p-5">
+          <div className="text-sm font-semibold text-violet-300">The approach</div>
+          <p className="mt-2 text-sm text-slate-300">Use real satellite data on a shared interface. Show live Earth data, cite published Moon measurements, and separate observation from interpretation.</p>
+        </Glass>
+        <Glass className="p-5">
+          <div className="text-sm font-semibold text-blue-300">The promise</div>
+          <p className="mt-2 text-sm text-slate-300">No invented measurements. Anything illustrative is labelled. Every number has a source or a link.</p>
+        </Glass>
+      </section>
+
+      <section className="mt-12">
+        <h2 className="text-2xl font-bold text-white">What you can do here</h2>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {FEATURES.map((f) => (
+            <a key={f.href} href={f.href} className="no-underline">
+              <Glass hover className="h-full p-5">
+                <div className="text-lg font-semibold text-white">{f.title}</div>
+                <p className="mt-2 text-sm text-slate-300">{f.text}</p>
+                <div className="mt-3 text-sm text-cyan-300">Open →</div>
+              </Glass>
+            </a>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-14">
+        <h2 className="text-2xl font-bold text-white">Powered by open data</h2>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {SOURCES.map((s) => (
+            <Glass key={s.id} className="p-4">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-slate-400">{s.agency}</span>
+                <Badge kind={s.access} />
+              </div>
+              <div className="mt-2 text-sm font-semibold text-white">{s.name}</div>
+              <div className="mt-2 text-xs"><ExtLink href={s.url}>Visit source ↗</ExtLink></div>
+            </Glass>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ---- pages/EarthExplorer.jsx ----
+
+const DATASET_QUERIES = [
+  'MODIS land surface temperature',
+  'MODIS NDVI vegetation',
+  'GPM IMERG precipitation',
+  'snow cover',
+  'sea ice concentration',
+];
+
+function EarthExplorer({ point, setPoint }) {
+  const mapEl = useRef(null);
+  const mapRef = useRef(null);
+  const layerRef = useRef(null);
+  const cmpRef = useRef(null);
+  const markerRef = useRef(null);
+  const errRef = useRef(0);
+
+  const [layerId, setLayerId] = useState('truecolor');
+  const [date, setDate] = useState(defaultDate());
+  const [opacity, setOpacity] = useState(0.9);
+  const [cmpOn, setCmpOn] = useState(false);
+  const [cmpDate, setCmpDate] = useState(yearAgo(defaultDate()));
+  const [blend, setBlend] = useState(0.5);
+  const [loading, setLoading] = useState(true);
+  const [tileErrors, setTileErrors] = useState(0);
+
+  const [query, setQuery] = useState(DATASET_QUERIES[0]);
+  const [cmr, setCmr] = useState({ status: 'idle', items: [], error: null });
+
+  const layer = GIBS_LAYERS.find((l) => l.id === layerId);
+  const today = isoDate(new Date());
+
+  // Create the map once.
+  useEffect(() => {
+    const map = L.map(mapEl.current, { center: [25, 10], zoom: 3, minZoom: 2, maxZoom: 9, worldCopyJump: true });
+    L.tileLayer(gibsUrl(GIBS_BASE, null), {
+      maxNativeZoom: GIBS_BASE.maxZoom, maxZoom: 9,
+      attribution: 'Basemap: NASA GIBS Blue Marble · <a href="https://earthdata.nasa.gov/gibs" target="_blank" rel="noopener noreferrer">NASA GIBS</a>',
+    }).addTo(map);
+    map.on('click', (e) => {
+      const lon = ((((e.latlng.lng + 180) % 360) + 360) % 360) - 180;
+      setPoint({ lat: Number(e.latlng.lat.toFixed(2)), lon: Number(lon.toFixed(2)), name: 'Map selection' });
+    });
+    mapRef.current = map;
+    return () => map.remove();
+  }, []);
+
+  // Show a marker for the selected point.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (markerRef.current) markerRef.current.remove();
+    markerRef.current = L.circleMarker([point.lat, point.lon], { radius: 8, color: '#22d3ee', weight: 2, fillColor: '#8b5cf6', fillOpacity: 0.85 })
+      .addTo(map)
+      .bindTooltip(`${point.name} (${point.lat}, ${point.lon})`);
+  }, [point]);
+
+  // Main data layer.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (layerRef.current) layerRef.current.remove();
+    errRef.current = 0;
+    setTileErrors(0);
+    setLoading(true);
+    const tl = L.tileLayer(gibsUrl(layer, date), { maxNativeZoom: layer.maxZoom, maxZoom: 9, opacity, attribution: 'Data: NASA GIBS / ' + layer.instrument });
+    tl.on('loading', () => setLoading(true));
+    tl.on('load', () => setLoading(false));
+    tl.on('tileerror', () => { errRef.current += 1; if (errRef.current === 6) setTileErrors(6); });
+    tl.addTo(map);
+    layerRef.current = tl;
+  }, [layerId, date]);
+
+  useEffect(() => { if (layerRef.current) layerRef.current.setOpacity(opacity); }, [opacity]);
+
+  // Optional comparison layer: same product, different date, blended on top.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (cmpRef.current) { cmpRef.current.remove(); cmpRef.current = null; }
+    if (!cmpOn) return;
+    const tl = L.tileLayer(gibsUrl(layer, cmpDate), { maxNativeZoom: layer.maxZoom, maxZoom: 9, opacity: blend });
+    tl.addTo(map);
+    cmpRef.current = tl;
+  }, [cmpOn, cmpDate, layerId]);
+
+  useEffect(() => { if (cmpRef.current) cmpRef.current.setOpacity(blend); }, [blend]);
+
+  function flyTo(p) {
+    setPoint({ lat: p.lat, lon: p.lon, name: p.name });
+    if (mapRef.current) mapRef.current.flyTo([p.lat, p.lon], 5, { duration: 1.4 });
+  }
+
+  async function runSearch(q) {
+    setQuery(q);
+    setCmr({ status: 'loading', items: [], error: null });
+    try {
+      const items = await searchCmr(q);
+      setCmr({ status: 'done', items, error: null });
+    } catch (e) {
+      setCmr({ status: 'error', items: [], error: e.message });
+    }
+  }
+
+  return (
+    <div>
+      <SectionTitle eyebrow="Earth Explorer" title="Earth from orbit">
+        Live NASA GIBS satellite imagery. Choose a theme and a date, blend two dates to look for change, and click anywhere to select a location for the Dashboard.
+      </SectionTitle>
+
+      <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
+        <div className="space-y-4">
+          <Glass className="p-4">
+            <div className="text-sm font-semibold text-white">Theme</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {GIBS_LAYERS.map((l) => (
+                <button key={l.id} className={`chip ${l.id === layerId ? 'chip-on' : ''}`} onClick={() => setLayerId(l.id)}>{l.label}</button>
+              ))}
+            </div>
+            <div className="mt-4 text-xs text-slate-300">{layer.desc}</div>
+            <dl className="mt-3 space-y-1 text-xs text-slate-400">
+              <div><dt className="inline text-slate-500">Units: </dt><dd className="inline">{layer.unit}</dd></div>
+              <div><dt className="inline text-slate-500">Instrument: </dt><dd className="inline">{layer.instrument}</dd></div>
+              <div><dt className="inline text-slate-500">GIBS layer: </dt><dd className="inline break-all">{layer.layer}</dd></div>
+            </dl>
+            <div className="mt-3"><ExtLink href={worldviewLink(layer, date)}>Open this layer in NASA Worldview ↗</ExtLink></div>
+          </Glass>
+
+          <Glass className="p-4">
+            <label className="block text-sm font-semibold text-white" htmlFor="e-date">Observation date</label>
+            <input id="e-date" type="date" className="field mt-2 w-full" value={date} max={today} onChange={(e) => e.target.value && setDate(e.target.value)} />
+            <label className="mt-4 block text-xs text-slate-300" htmlFor="e-op">Layer opacity</label>
+            <input id="e-op" type="range" min="0.1" max="1" step="0.05" value={opacity} onChange={(e) => setOpacity(Number(e.target.value))} className="w-full accent-cyan-400" />
+
+            <label className="mt-4 flex items-center gap-2 text-sm text-slate-200">
+              <input type="checkbox" checked={cmpOn} onChange={(e) => setCmpOn(e.target.checked)} className="accent-violet-400" />
+              Compare with another date
+            </label>
+            {cmpOn && (
+              <div className="mt-2 space-y-2">
+                <input type="date" className="field w-full" value={cmpDate} max={today} onChange={(e) => e.target.value && setCmpDate(e.target.value)} aria-label="Comparison date" />
+                <label className="block text-xs text-slate-300" htmlFor="e-bl">Blend of comparison date</label>
+                <input id="e-bl" type="range" min="0" max="1" step="0.05" value={blend} onChange={(e) => setBlend(Number(e.target.value))} className="w-full accent-violet-400" />
+                <div className="text-xs text-slate-400">Slide to fade between {date} and {cmpDate}. Differences you see are candidates for change, not proof of it. Clouds and seasons change images too.</div>
+              </div>
+            )}
+          </Glass>
+
+          <Glass className="p-4">
+            <div className="text-sm font-semibold text-white">Extreme environments</div>
+            <div className="mt-3 flex flex-col gap-2">
+              {EARTH_PRESETS.map((p) => (
+                <button key={p.name} className="chip text-left" onClick={() => flyTo(p)} title={p.why}>{p.name}</button>
+              ))}
+            </div>
+          </Glass>
+        </div>
+
+        <div className="space-y-4">
+          <div className="relative">
+            <div ref={mapEl} className="map-box" role="application" aria-label="Interactive Earth map" />
+            {loading && (
+              <div className="absolute left-3 top-3 z-[500] rounded-lg bg-[#050816]/85 px-3 py-2"><Loader label="Loading satellite tiles…" /></div>
+            )}
+          </div>
+          {tileErrors > 0 && (
+            <ErrorBanner title="Some imagery tiles did not load">
+              NASA GIBS has no tiles for this layer on {date}, the service is slow, or the layer was renamed. Try an earlier date (8-day and daily products lag a few days) or another theme. You can also open the same layer in <ExtLink href={worldviewLink(layer, date)}>NASA Worldview</ExtLink>.
+            </ErrorBanner>
+          )}
+          <Glass className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
+            <div>
+              <span className="text-slate-400">Selected point: </span>
+              <span className="text-white">{point.name}</span>
+              <span className="text-slate-300"> · {point.lat}°, {point.lon}°</span>
+            </div>
+            <a href="#/dashboard" className="btn btn-earth !py-2 text-sm">Open in Dashboard →</a>
+          </Glass>
+        </div>
+      </div>
+
+      <section className="mt-10">
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-2xl font-bold text-white">Find Earth science datasets</h2>
+          <Badge kind="live" />
+        </div>
+        <p className="mt-2 max-w-3xl text-sm text-slate-300">
+          Searches NASA's Common Metadata Repository, the catalogue behind <ExtLink href="https://search.earthdata.nasa.gov">Earthdata Search</ExtLink>. Pick a topic to see real dataset records.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2">
+          {DATASET_QUERIES.map((q) => (
+            <button key={q} className={`chip ${q === query && cmr.status !== 'idle' ? 'chip-on' : ''}`} onClick={() => runSearch(q)}>{q}</button>
+          ))}
+        </div>
+        <div className="mt-4">
+          {cmr.status === 'loading' && <Loader label="Searching Earthdata…" />}
+          {cmr.status === 'error' && <ErrorBanner title="Earthdata search failed" onRetry={() => runSearch(query)}>{cmr.error}</ErrorBanner>}
+          {cmr.status === 'idle' && <div className="text-sm text-slate-400">Choose a topic above to search.</div>}
+          {cmr.status === 'done' && cmr.items.length === 0 && <div className="text-sm text-slate-400">No datasets found.</div>}
+          {cmr.status === 'done' && cmr.items.length > 0 && (
+            <div className="grid gap-3 md:grid-cols-2">
+              {cmr.items.map((it) => (
+                <Glass key={it.id} className="p-4">
+                  <div className="text-sm font-semibold text-white">{it.title}</div>
+                  <div className="mt-1 text-xs text-slate-400">{it.center} · {it.shortName} {it.version && `v${it.version}`}</div>
+                  <div className="mt-1 text-xs text-slate-400">Coverage: {it.start || 'n/a'} → {it.end}</div>
+                  <div className="mt-2 flex gap-4 text-xs">
+                    <ExtLink href={it.link}>Metadata ↗</ExtLink>
+                    <ExtLink href={it.search}>Earthdata Search ↗</ExtLink>
+                  </div>
+                </Glass>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ---- pages/MoonExplorer.jsx ----
+
+function PolarPlot({ selected, onSelect }) {
+  // Azimuthal view of the south pole. Radius = angular distance from the pole; angle = longitude.
+  const size = 320;
+  const c = size / 2;
+  const maxDeg = 10; // show from -80 to the pole
+  const scale = (c - 16) / maxDeg;
+  const pos = (lat, lon) => {
+    const r = (90 - Math.abs(lat)) * scale;
+    const a = ((lon - 90) * Math.PI) / 180;
+    return [c + r * Math.cos(a), c + r * Math.sin(a)];
+  };
+  return (
+    <svg viewBox={`0 0 ${size} ${size}`} className="mx-auto w-full max-w-sm" role="img" aria-label="South polar map of crater locations">
+      <circle cx={c} cy={c} r={c - 6} fill="#050816" stroke="#334155" />
+      {[2, 4, 6, 8, 10].map((d) => (
+        <g key={d}>
+          <circle cx={c} cy={c} r={d * scale} fill="none" stroke="#1e293b" strokeDasharray="3 4" />
+          <text x={c + 4} y={c - d * scale + 11} fontSize="9" fill="#64748b">{90 - d}°S</text>
+        </g>
+      ))}
+      <line x1={c} y1={8} x2={c} y2={size - 8} stroke="#1e293b" />
+      <line x1={8} y1={c} x2={size - 8} y2={c} stroke="#1e293b" />
+      <text x={c} y={14} fontSize="9" fill="#64748b" textAnchor="middle">90°E</text>
+      <text x={size - 12} y={c - 4} fontSize="9" fill="#64748b" textAnchor="end">180°</text>
+      <text x={c} y={size - 5} fontSize="9" fill="#64748b" textAnchor="middle">90°W</text>
+      <text x={12} y={c - 4} fontSize="9" fill="#64748b">0°</text>
+      {MOON_SITES.map((s) => {
+        const [x, y] = pos(s.lat, s.lon);
+        const on = selected === s.name;
+        const rr = Math.max(4, (s.km / 111) * scale * 0.9);
+        return (
+          <g key={s.name} className="cursor-pointer" onClick={() => onSelect(s.name)}>
+            <circle cx={x} cy={y} r={rr} fill={on ? 'rgba(167,139,250,.45)' : 'rgba(34,211,238,.25)'} stroke={on ? '#a78bfa' : '#22d3ee'} strokeWidth="1.5" />
+            <text x={x + rr + 3} y={y + 3} fontSize="9.5" fill="#e2e8f0">{s.name}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function MoonExplorer() {
+  const mapEl = useRef(null);
+  const mapRef = useRef(null);
+  const layerRef = useRef(null);
+  const markersRef = useRef({});
+  const errRef = useRef(0);
+
+  const [layerId, setLayerId] = useState('wac');
+  const [loading, setLoading] = useState(true);
+  const [tileErrors, setTileErrors] = useState(0);
+  const [site, setSite] = useState('Shackleton');
+
+  const layer = MOON_LAYERS.find((l) => l.id === layerId);
+  const siteInfo = MOON_SITES.find((s) => s.name === site);
+
+  useEffect(() => {
+    // Geographic (plate carrée) projection, matching NASA Moon Trek's equirectangular tile sets.
+    const map = L.map(mapEl.current, { crs: L.CRS.EPSG4326, center: [-60, 0], zoom: 2, minZoom: 1, maxZoom: 8, maxBounds: [[-95, -190], [95, 190]] });
+    mapRef.current = map;
+    MOON_SITES.forEach((s) => {
+      const m = L.circleMarker([s.lat, s.lon], { radius: 7, color: '#a78bfa', weight: 2, fillColor: '#22d3ee', fillOpacity: 0.7 }).addTo(map);
+      m.bindPopup(`<strong>${s.name}</strong> (~${s.km} km)<br/>${s.lat}°, ${s.lon}°<br/><span style="font-size:12px">${s.note}</span>`);
+      m.on('click', () => setSite(s.name));
+      markersRef.current[s.name] = m;
+    });
+    return () => map.remove();
+  }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (layerRef.current) layerRef.current.remove();
+    errRef.current = 0;
+    setTileErrors(0);
+    setLoading(true);
+    // Trek's level 0 tile covers 180°, Leaflet's EPSG:4326 level 0 covers 360°, hence zoomOffset -1.
+    const tl = L.tileLayer(layer.url, {
+      tileSize: 256, zoomOffset: -1, minZoom: 1, maxNativeZoom: layer.maxNative + 1, maxZoom: 8, noWrap: true,
+      attribution: 'Imagery: NASA/GSFC/ASU LRO · <a href="https://trek.nasa.gov/moon/" target="_blank" rel="noopener noreferrer">NASA Moon Trek</a>',
+    });
+    tl.on('loading', () => setLoading(true));
+    tl.on('load', () => setLoading(false));
+    tl.on('tileerror', () => { errRef.current += 1; if (errRef.current === 6) setTileErrors(6); });
+    tl.addTo(map);
+    tl.bringToBack();
+    layerRef.current = tl;
+  }, [layerId]);
+
+  function goTo(name) {
+    setSite(name);
+    const s = MOON_SITES.find((x) => x.name === name);
+    if (s && mapRef.current) {
+      mapRef.current.flyTo([s.lat, s.lon], 5, { duration: 1.3 });
+      markersRef.current[name]?.openPopup();
+    }
+  }
+
+  const chartData = TEMP_EXTREMES.filter((t) => t.body === 'Moon').map((t) => ({ name: t.label, k: t.k, cite: t.cite }));
+
+  return (
+    <div>
+      <SectionTitle eyebrow="Moon Explorer" title="The Moon, pole to pole">
+        NASA LRO imagery and elevation, with the south polar craters marked. The coldest places in the Solar System measured so far are in craters like these.
+      </SectionTitle>
+
+      <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
+        <div className="space-y-4">
+          <Glass className="p-4">
+            <div className="text-sm font-semibold text-white">Surface layer</div>
+            <div className="mt-3 flex flex-col gap-2">
+              {MOON_LAYERS.map((l) => (
+                <button key={l.id} className={`chip text-left ${l.id === layerId ? 'chip-on' : ''}`} onClick={() => setLayerId(l.id)}>{l.label}</button>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-slate-300">{layer.desc}</p>
+          </Glass>
+          <Glass className="p-4">
+            <div className="text-sm font-semibold text-white">Polar regions</div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {MOON_SITES.map((s) => (
+                <button key={s.name} className={`chip ${s.name === site ? 'chip-on' : ''}`} onClick={() => goTo(s.name)}>{s.name}</button>
+              ))}
+            </div>
+            <div className="mt-4 text-xs text-slate-300">
+              <div className="font-semibold text-white">{siteInfo.name} · ~{siteInfo.km} km wide</div>
+              <div className="mt-1">Approx. location {siteInfo.lat}°, {siteInfo.lon}°</div>
+              <div className="mt-2">{siteInfo.note}</div>
+            </div>
+          </Glass>
+          <Glass className="p-4">
+            <div className="text-sm font-semibold text-white">South polar view</div>
+            <p className="mb-2 text-xs text-slate-400">Locations only (80°S to the pole). Circle size is the crater diameter.</p>
+            <PolarPlot selected={site} onSelect={goTo} />
+          </Glass>
+        </div>
+
+        <div className="space-y-4">
+          <div className="relative">
+            <div ref={mapEl} className="map-box" role="application" aria-label="Interactive Moon map" />
+            {loading && <div className="absolute left-3 top-3 z-[500] rounded-lg bg-[#050816]/85 px-3 py-2"><Loader label="Loading lunar tiles…" /></div>}
+          </div>
+          {tileErrors > 0 && (
+            <ErrorBanner title="Lunar tiles did not load">
+              NASA Moon Trek tiles are unavailable or slow right now. You can explore the same data directly in <ExtLink href="https://trek.nasa.gov/moon/">NASA Moon Trek</ExtLink>. The crater markers and charts on this page still work.
+            </ErrorBanner>
+          )}
+          <p className="text-xs text-slate-400">Map is shown in a flat latitude/longitude projection, so regions near the poles look stretched. Use the polar view for true relative positions.</p>
+        </div>
+      </div>
+
+      <section className="mt-10 grid gap-5 lg:grid-cols-2">
+        <Glass className="p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-xl font-bold text-white">Diviner temperature observations</h2>
+            <Badge kind="measured" />
+          </div>
+          <p className="mt-2 text-sm text-slate-300">
+            Diviner measures infrared radiation emitted by the surface. These are published values, not live data. The dashed line marks about {ICE_STABILITY_K} K, below which surface water ice is expected to be stable (an interpretation).
+          </p>
+          <div className="mt-4 h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 12, right: 12, left: 0, bottom: 8 }}>
+                <CartesianGrid stroke={CHART.grid} strokeDasharray="3 3" />
+                <XAxis dataKey="name" tick={{ fill: CHART.text, fontSize: 11 }} />
+                <YAxis tick={{ fill: CHART.text, fontSize: 11 }} label={{ value: 'Temperature (K)', angle: -90, position: 'insideLeft', fill: CHART.text, fontSize: 11 }} />
+                <Tooltip contentStyle={{ background: '#0b1230', border: '1px solid #334155', borderRadius: 8 }} formatter={(v) => [`${v} K`, 'Temperature']} />
+                <ReferenceLine y={ICE_STABILITY_K} stroke={CHART.amber} strokeDasharray="5 4" label={{ value: `~${ICE_STABILITY_K} K ice stability`, fill: CHART.amber, fontSize: 11, position: 'insideTopRight' }} />
+                <Bar dataKey="k" radius={[6, 6, 0, 0]}>
+                  {chartData.map((d, i) => <Cell key={i} fill={[CHART.violet, CHART.blue, CHART.cyan][i % 3]} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <ul className="mt-3 space-y-1 text-xs text-slate-400">
+            {chartData.map((d) => <li key={d.name}>{d.name}: {d.cite}</li>)}
+          </ul>
+        </Glass>
+
+        <Glass className="p-5">
+          <h2 className="text-xl font-bold text-white">Lunar surface and planetary science</h2>
+          <ul className="mt-3 space-y-3 text-sm text-slate-300">
+            <li><span className="font-semibold text-white">Why the poles are special.</span> The Moon's axis is tilted only about 1.5°, so the Sun skims the horizon near the poles. Deep crater floors can stay in shadow for billions of years. <Badge kind="interpretation" /></li>
+            <li><span className="font-semibold text-white">Ice.</span> The 2009 LCROSS impact at Cabeus released a plume in which water was detected. Extent and origin of polar ice are still being studied. <Badge kind="measured" /></li>
+            <li><span className="font-semibold text-white">Instruments.</span> LROC (cameras), LOLA (laser altimeter), Diviner (thermal radiometer), LEND (neutrons) and Mini-RF (radar) each probe different properties of the polar surface.</li>
+          </ul>
+          <div className="mt-4 border-t border-white/10 pt-3 text-sm">
+            <div className="mb-2 font-semibold text-white">Data and resources</div>
+            <ul className="space-y-1">
+              <li><ExtLink href="https://pds-geosciences.wustl.edu/missions/lro/diviner.htm">LRO Diviner data (PDS Geosciences Node) ↗</ExtLink></li>
+              <li><ExtLink href="https://pds.nasa.gov">NASA Planetary Data System ↗</ExtLink></li>
+              <li><ExtLink href="https://science.nasa.gov/mission/lro/">LRO mission page (NASA) ↗</ExtLink></li>
+              <li><ExtLink href="https://trek.nasa.gov/moon/">NASA Moon Trek ↗</ExtLink></li>
+            </ul>
+          </div>
+        </Glass>
+      </section>
+    </div>
+  );
+}
+
+// ---- pages/Compare.jsx ----
+
+// Illustrative model ONLY. Anchored to two published Diviner values; the curve between them is a simple
+// radiative-equilibrium shape (T ~ T_noon * cos(hour angle)^0.25), not a measurement.
+function diurnalModel(tNoon, tNight) {
+  const pts = [];
+  for (let d = 0; d <= 29.5; d += 0.5) {
+    const h = ((d / 29.5) * 360 - 180); // local hour angle in degrees, noon at the middle of the cycle
+    const c = Math.cos((h * Math.PI) / 180);
+    const t = c > 0 ? Math.max(tNight, tNoon * Math.pow(c, 0.25)) : tNight;
+    pts.push({ day: d, k: Math.round(t) });
+  }
+  return pts;
+}
+
+function Compare() {
+  const [unit, setUnit] = useState('K');
+  const conv = (k) => (unit === 'K' ? k : k - 273.15);
+  const unitLabel = unit === 'K' ? 'K' : '°C';
+
+  const barData = TEMP_EXTREMES.map((t) => ({ name: t.label, value: Number(conv(t.k).toFixed(1)), body: t.body, cite: t.cite }));
+  const model = useMemo(() => diurnalModel(390, 95).map((p) => ({ ...p, v: Number(conv(p.k).toFixed(1)) })), [unit]);
+  const iceLine = Number(conv(ICE_STABILITY_K).toFixed(1));
+
+  return (
+    <div>
+      <SectionTitle eyebrow="Earth vs Moon" title="Two worlds, side by side">
+        Same questions, two planets: how hot, how cold, how much air, how much water. Each row is tagged so you can tell what was measured from what is interpreted.
+      </SectionTitle>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <Glass className="flex items-center gap-4 p-5">
+          <Planet kind="earth" className="h-20 w-20 shrink-0" />
+          <div>
+            <div className="text-lg font-bold text-cyan-200">Earth</div>
+            <p className="text-sm text-slate-300">An atmosphere and oceans spread heat around, so most surfaces stay within a few tens of degrees of where they started the day.</p>
+          </div>
+        </Glass>
+        <Glass className="flex items-center gap-4 p-5">
+          <Planet kind="moon" className="h-20 w-20 shrink-0" />
+          <div>
+            <div className="text-lg font-bold text-violet-200">Moon</div>
+            <p className="text-sm text-slate-300">With no atmosphere, the surface follows the Sun almost instantly: scorching at noon, deeply frozen at night and in polar shadow.</p>
+          </div>
+        </Glass>
+      </div>
+
+      <div className="mt-6 flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-slate-400">Temperature unit:</span>
+        {['K', '°C'].map((u) => (
+          <button key={u} className={`chip ${unit === u ? 'chip-on' : ''}`} onClick={() => setUnit(u)}>{u}</button>
+        ))}
+      </div>
+
+      <section className="mt-4 grid gap-5 lg:grid-cols-2">
+        <Glass className="p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-bold text-white">Temperature extremes</h2>
+            <Badge kind="measured" />
+          </div>
+          <p className="mt-1 text-xs text-slate-400">Earth bars are air temperatures at weather stations (WMO). Moon bars are surface temperatures from LRO Diviner. They are different quantities, so compare with care.</p>
+          <div className="mt-3 h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={barData} margin={{ top: 12, right: 12, left: 0, bottom: 28 }}>
+                <CartesianGrid stroke={CHART.grid} strokeDasharray="3 3" />
+                <XAxis dataKey="name" tick={{ fill: CHART.text, fontSize: 10 }} interval={0} angle={-18} textAnchor="end" height={60} />
+                <YAxis tick={{ fill: CHART.text, fontSize: 11 }} label={{ value: `Temperature (${unitLabel})`, angle: -90, position: 'insideLeft', fill: CHART.text, fontSize: 11 }} />
+                <Tooltip contentStyle={{ background: '#0b1230', border: '1px solid #334155', borderRadius: 8 }} formatter={(v) => [`${v} ${unitLabel}`, 'Temperature']} />
+                <ReferenceLine y={iceLine} stroke={CHART.amber} strokeDasharray="5 4" label={{ value: `~${iceLine} ${unitLabel} ice stability`, fill: CHART.amber, fontSize: 10, position: 'insideTopLeft' }} />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                  {barData.map((d, i) => <Cell key={i} fill={d.body === 'Earth' ? CHART.cyan : CHART.violet} />)}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="mt-2 flex gap-4 text-xs text-slate-400">
+            <span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm" style={{ background: CHART.cyan }} />Earth</span>
+            <span><span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm" style={{ background: CHART.violet }} />Moon</span>
+          </div>
+          <details className="mt-3 text-xs text-slate-400">
+            <summary className="cursor-pointer text-slate-300">Sources for each bar</summary>
+            <ul className="mt-2 list-disc space-y-1 pl-4">
+              {TEMP_EXTREMES.map((t) => <li key={t.key}>{t.label}: {t.cite}</li>)}
+            </ul>
+          </details>
+        </Glass>
+
+        <Glass className="p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-bold text-white">Lunar equator through one day</h2>
+            <Badge kind="model" />
+          </div>
+          <p className="mt-1 text-xs text-slate-400">
+            Illustrative only. The curve is a simple physical model anchored to two published Diviner values (about 95 K night, 390 K noon). It is not a Diviner measurement, so do not read exact temperatures off it.
+          </p>
+          <div className="mt-3 h-72">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={model} margin={{ top: 12, right: 12, left: 0, bottom: 20 }}>
+                <CartesianGrid stroke={CHART.grid} strokeDasharray="3 3" />
+                <XAxis dataKey="day" type="number" domain={[0, 29.5]} tick={{ fill: CHART.text, fontSize: 11 }} label={{ value: 'Earth days through one lunar day (noon at day ~14.75)', position: 'insideBottom', offset: -10, fill: CHART.text, fontSize: 11 }} />
+                <YAxis tick={{ fill: CHART.text, fontSize: 11 }} label={{ value: `Temperature (${unitLabel})`, angle: -90, position: 'insideLeft', fill: CHART.text, fontSize: 11 }} />
+                <Tooltip contentStyle={{ background: '#0b1230', border: '1px solid #334155', borderRadius: 8 }} formatter={(v) => [`${v} ${unitLabel}`, 'Modelled']} labelFormatter={(d) => `Day ${d}`} />
+                <Legend verticalAlign="top" height={24} />
+                <Line name="Modelled equatorial surface" type="monotone" dataKey="v" stroke={CHART.violet} strokeWidth={2.5} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Glass>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-2xl font-bold text-white">Similarities and differences</h2>
+        <div className="mt-4 hidden overflow-hidden rounded-2xl border border-white/10 md:block">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-white/5 text-xs uppercase tracking-wider text-slate-400">
+              <tr><th className="p-3">Parameter</th><th className="p-3 text-cyan-200">Earth</th><th className="p-3 text-violet-200">Moon</th><th className="p-3">Type</th></tr>
+            </thead>
+            <tbody>
+              {COMPARE_ROWS.map((r) => (
+                <tr key={r.param} className="border-t border-white/10 align-top">
+                  <td className="p-3 font-semibold text-white">{r.param}{r.note && <div className="mt-1 text-xs font-normal text-slate-400">{r.note}</div>}</td>
+                  <td className="p-3 text-slate-200">{r.earth}</td>
+                  <td className="p-3 text-slate-200">{r.moon}</td>
+                  <td className="p-3"><Badge kind={r.kind} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-4 space-y-3 md:hidden">
+          {COMPARE_ROWS.map((r) => (
+            <Glass key={r.param} className="p-4 text-sm">
+              <div className="flex items-start justify-between gap-2"><div className="font-semibold text-white">{r.param}</div><Badge kind={r.kind} /></div>
+              <div className="mt-2"><span className="text-cyan-200">Earth: </span>{r.earth}</div>
+              <div className="mt-1"><span className="text-violet-200">Moon: </span>{r.moon}</div>
+              {r.note && <div className="mt-2 text-xs text-slate-400">{r.note}</div>}
+            </Glass>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-8 grid gap-4 md:grid-cols-2">
+        <Glass className="p-5">
+          <h3 className="font-bold text-white">What they share</h3>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-300">
+            <li>Both have polar regions where sunlight arrives at a very low angle.</li>
+            <li>Both have cold places that can hold ice: Antarctica and Greenland on Earth, permanently shadowed craters on the Moon.</li>
+            <li>Both are observed by satellite thermal infrared sensors, so temperature maps for each can be built the same way.</li>
+          </ul>
+        </Glass>
+        <Glass className="p-5">
+          <h3 className="font-bold text-white">What sets them apart</h3>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-300">
+            <li>Earth's atmosphere and oceans move heat around, narrowing temperature swings. The Moon has no such buffer.</li>
+            <li>Lunar polar craters are far colder than any measured natural place on Earth.</li>
+            <li>Earth ice sits in a dynamic cycle of snow, melt and flow. Lunar ice, where present, has been trapped for a very long time.</li>
+          </ul>
+        </Glass>
+      </section>
+    </div>
+  );
+}
+
+// ---- pages/Dashboard.jsx ----
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function Stat({ label, value, unit }) {
+  return (
+    <Glass className="p-4">
+      <div className="text-xs uppercase tracking-wider text-slate-400">{label}</div>
+      <div className="mt-1 text-2xl font-bold text-white">{value == null ? 'n/a' : value}<span className="ml-1 text-sm font-normal text-slate-400">{value == null ? '' : unit}</span></div>
+    </Glass>
+  );
+}
+
+function Dashboard({ point, setPoint, power, setPower }) {
+  const [state, setState] = useState({ status: power ? 'done' : 'idle', error: null });
+  const [lat, setLat] = useState(String(point.lat));
+  const [lon, setLon] = useState(String(point.lon));
+  const [series, setSeries] = useState('t2m');
+
+  useEffect(() => { setLat(String(point.lat)); setLon(String(point.lon)); }, [point]);
+
+  async function load(p) {
+    const la = Number(p.lat);
+    const lo = Number(p.lon);
+    if (!(la >= -90 && la <= 90) || !(lo >= -180 && lo <= 180)) {
+      setState({ status: 'error', error: 'Latitude must be between -90 and 90 and longitude between -180 and 180.' });
+      return;
+    }
+    setState({ status: 'loading', error: null });
+    try {
+      const res = await fetchPower(la, lo);
+      setPower({ ...res, name: p.name || 'Custom location' });
+      setState({ status: 'done', error: null });
+    } catch (e) {
+      setState({ status: 'error', error: e.message });
+    }
+  }
+
+  const rows = power ? power.rows : [];
+  const meta = power ? power.meta : null;
+
+  const climatology = useMemo(() => {
+    if (!rows.length) return [];
+    return MONTHS.map((m, i) => {
+      const r = rows.filter((x) => x.month === i + 1);
+      return {
+        month: m,
+        t2m: mean(r.map((x) => x.t2m)) == null ? null : Number(mean(r.map((x) => x.t2m)).toFixed(2)),
+        precip: mean(r.map((x) => x.precip)) == null ? null : Number(mean(r.map((x) => x.precip)).toFixed(2)),
+      };
+    });
+  }, [rows]);
+
+  const t = rows.map((r) => r.t2m);
+  const pr = rows.map((r) => r.precip);
+
+  return (
+    <div>
+      <SectionTitle eyebrow="Data Dashboard" title="Earth climate at any point">
+        Live monthly air temperature and precipitation from NASA POWER for a place you choose. Each result lists its dataset, period, location and units, and can be downloaded.
+      </SectionTitle>
+
+      <Glass className="p-4">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <label className="block text-xs text-slate-400" htmlFor="d-lat">Latitude</label>
+            <input id="d-lat" className="field w-28" inputMode="decimal" value={lat} onChange={(e) => setLat(e.target.value)} />
+          </div>
+          <div>
+            <label className="block text-xs text-slate-400" htmlFor="d-lon">Longitude</label>
+            <input id="d-lon" className="field w-28" inputMode="decimal" value={lon} onChange={(e) => setLon(e.target.value)} />
+          </div>
+          <button className="btn btn-earth !py-2" onClick={() => { const p = { lat: Number(lat), lon: Number(lon), name: 'Custom location' }; setPoint(p); load(p); }}>Load data</button>
+          <div className="text-xs text-slate-400">or pick a place:</div>
+          <div className="flex flex-wrap gap-2">
+            {EARTH_PRESETS.map((p) => (
+              <button key={p.name} className="chip" onClick={() => { setPoint(p); load(p); }}>{p.name}</button>
+            ))}
+          </div>
+        </div>
+        <div className="mt-2 text-xs text-slate-400">Selected on the Earth map: {point.name} ({point.lat}°, {point.lon}°)</div>
+      </Glass>
+
+      <div className="mt-5">
+        {state.status === 'idle' && <Glass className="p-6 text-sm text-slate-300">Choose a place above and press <strong>Load data</strong> to fetch live NASA POWER data.</Glass>}
+        {state.status === 'loading' && <Glass className="p-6"><Loader label="Requesting NASA POWER data…" /></Glass>}
+        {state.status === 'error' && <ErrorBanner title="Could not load data" onRetry={() => load({ lat, lon, name: point.name })}>{state.error}</ErrorBanner>}
+      </div>
+
+      {power && state.status !== 'loading' && (
+        <div className="mt-2 space-y-5">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <Stat label="Mean air temperature" value={mean(t) == null ? null : mean(t).toFixed(1)} unit={meta.units.t2m === 'C' ? '°C' : meta.units.t2m} />
+            <Stat label="Warmest monthly mean" value={maxOf(t) == null ? null : maxOf(t).toFixed(1)} unit={meta.units.t2m === 'C' ? '°C' : meta.units.t2m} />
+            <Stat label="Coldest monthly mean" value={minOf(t) == null ? null : minOf(t).toFixed(1)} unit={meta.units.t2m === 'C' ? '°C' : meta.units.t2m} />
+            <Stat label="Mean precipitation" value={mean(pr) == null ? null : mean(pr).toFixed(2)} unit={meta.units.precip} />
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-2">
+            <Glass className="p-5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg font-bold text-white">Monthly time series, {meta.startYear}–{meta.endYear}</h2>
+                <div className="flex gap-2">
+                  <button className={`chip ${series === 't2m' ? 'chip-on' : ''}`} onClick={() => setSeries('t2m')}>Temperature</button>
+                  <button className={`chip ${series === 'precip' ? 'chip-on' : ''}`} onClick={() => setSeries('precip')}>Precipitation</button>
+                </div>
+              </div>
+              <div className="mt-3 h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={rows} margin={{ top: 10, right: 12, left: 0, bottom: 8 }}>
+                    <CartesianGrid stroke={CHART.grid} strokeDasharray="3 3" />
+                    <XAxis dataKey="date" tick={{ fill: CHART.text, fontSize: 10 }} minTickGap={40} />
+                    <YAxis tick={{ fill: CHART.text, fontSize: 11 }} label={{ value: series === 't2m' ? `Air temperature (${meta.units.t2m === 'C' ? '°C' : meta.units.t2m})` : `Precipitation (${meta.units.precip})`, angle: -90, position: 'insideLeft', fill: CHART.text, fontSize: 11 }} />
+                    <Tooltip contentStyle={{ background: '#0b1230', border: '1px solid #334155', borderRadius: 8 }} />
+                    <Line type="monotone" dataKey={series} name={series === 't2m' ? 'T2M' : 'PRECTOTCORR'} stroke={series === 't2m' ? CHART.cyan : CHART.blue} strokeWidth={2} dot={false} connectNulls />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </Glass>
+
+            <Glass className="p-5">
+              <h2 className="text-lg font-bold text-white">Average year (monthly climatology)</h2>
+              <div className="mt-3 h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={climatology} margin={{ top: 10, right: 12, left: 0, bottom: 8 }}>
+                    <CartesianGrid stroke={CHART.grid} strokeDasharray="3 3" />
+                    <XAxis dataKey="month" tick={{ fill: CHART.text, fontSize: 11 }} />
+                    <YAxis tick={{ fill: CHART.text, fontSize: 11 }} />
+                    <Tooltip contentStyle={{ background: '#0b1230', border: '1px solid #334155', borderRadius: 8 }} />
+                    <Legend />
+                    <Bar dataKey="t2m" name={`Temperature (${meta.units.t2m === 'C' ? '°C' : meta.units.t2m})`} fill={CHART.cyan} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="precip" name={`Precipitation (${meta.units.precip})`} fill={CHART.violet} radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Glass>
+          </div>
+
+          <Glass className="p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-lg font-bold text-white">Dataset details</h2>
+              <Badge kind="live" />
+            </div>
+            <dl className="mt-3 grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
+              <div><dt className="text-xs text-slate-500">Dataset</dt><dd className="text-slate-200">{meta.dataset}</dd></div>
+              <div><dt className="text-xs text-slate-500">Source</dt><dd><ExtLink href={meta.source}>{meta.source}</ExtLink></dd></div>
+              <div><dt className="text-xs text-slate-500">Observation period</dt><dd className="text-slate-200">Monthly means, {meta.startYear} to {meta.endYear}</dd></div>
+              <div><dt className="text-xs text-slate-500">Geographic location</dt><dd className="text-slate-200">{power.name}: {meta.lat}°, {meta.lon}° (model grid cell about 0.5° × 0.625°)</dd></div>
+              <div><dt className="text-xs text-slate-500">Measurement units</dt><dd className="text-slate-200">T2M air temperature at 2 m: {meta.units.t2m === 'C' ? '°C' : meta.units.t2m}. PRECTOTCORR corrected precipitation: {meta.units.precip}</dd></div>
+              <div><dt className="text-xs text-slate-500">Retrieved</dt><dd className="text-slate-200">{new Date(meta.retrieved).toLocaleString()}</dd></div>
+            </dl>
+            <p className="mt-3 text-xs text-slate-400">
+              POWER values come from satellite-informed reanalysis and model assimilation on a grid. They describe a grid cell, not a single weather station, so local extremes can differ.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button className="btn btn-ghost !py-2 text-sm" onClick={() => downloadText(`nasa-power_${meta.lat}_${meta.lon}.csv`, toCsv(rows, meta))}>Download CSV</button>
+              <a className="btn btn-ghost !py-2 text-sm" href={meta.apiUrl} target="_blank" rel="noopener noreferrer">Open raw API response ↗</a>
+            </div>
+          </Glass>
+        </div>
+      )}
+
+      <section className="mt-10">
+        <h2 className="text-2xl font-bold text-white">Dataset registry</h2>
+        <p className="mt-1 text-sm text-slate-300">Every source in this project, with how it is used here.</p>
+        <div className="mt-4 overflow-x-auto rounded-2xl border border-white/10">
+          <table className="w-full min-w-[640px] text-left text-sm">
+            <thead className="bg-white/5 text-xs uppercase tracking-wider text-slate-400">
+              <tr><th className="p-3">Dataset</th><th className="p-3">Agency</th><th className="p-3">Use on this site</th><th className="p-3">Link</th></tr>
+            </thead>
+            <tbody>
+              {SOURCES.map((s) => (
+                <tr key={s.id} className="border-t border-white/10 align-top">
+                  <td className="p-3 font-semibold text-white">{s.name}</td>
+                  <td className="p-3 text-slate-300">{s.agency}</td>
+                  <td className="p-3"><Badge kind={s.access} /></td>
+                  <td className="p-3"><ExtLink href={s.url}>Open ↗</ExtLink></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// ---- pages/Assistant.jsx ----
+
+const SUGGESTIONS = [
+  'What is Diviner and what did it measure?',
+  'Why are lunar polar craters so cold?',
+  'Is there water ice on the Moon?',
+  'What is the difference between air and surface temperature?',
+  'What does NDVI tell us?',
+  'Summarize the data I loaded in the Dashboard',
+];
+
+function summarizePower(power) {
+  const { rows, meta, name } = power;
+  const t = rows.map((r) => r.t2m);
+  const p = rows.map((r) => r.precip);
+  const warm = rows.reduce((a, b) => (b.t2m != null && (a == null || b.t2m > a.t2m) ? b : a), null);
+  const cold = rows.reduce((a, b) => (b.t2m != null && (a == null || b.t2m < a.t2m) ? b : a), null);
+  const u = meta.units.t2m === 'C' ? '°C' : meta.units.t2m;
+  const lines = [
+    `For ${name} (${meta.lat}°, ${meta.lon}°), NASA POWER monthly data for ${meta.startYear}–${meta.endYear} show a mean 2 m air temperature of ${mean(t).toFixed(1)} ${u}.`,
+    warm && cold ? `The warmest month in the record was ${warm.date} (${warm.t2m.toFixed(1)} ${u}) and the coldest was ${cold.date} (${cold.t2m.toFixed(1)} ${u}).` : '',
+    mean(p) != null ? `Mean precipitation was ${mean(p).toFixed(2)} ${meta.units.precip}, with monthly values from ${minOf(p).toFixed(2)} to ${maxOf(p).toFixed(2)} ${meta.units.precip}.` : '',
+    'These are grid-cell values from a reanalysis product and describe what is in the loaded data only. I cannot say from this alone whether the climate there is changing.',
+  ];
+  return lines.filter(Boolean).join(' ');
+}
+
+function Assistant({ power }) {
+  const [msgs, setMsgs] = useState([
+    { role: 'bot', text: 'Hi! I answer questions about satellite observations of Earth and the Moon. I only use cited sources and the data you have loaded, so if I do not have a sourced answer I will say so instead of guessing.', src: [] },
+  ]);
+  const [input, setInput] = useState('');
+  const endRef = useRef(null);
+
+  useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' }); }, [msgs]);
+
+  function ask(q) {
+    const text = q.trim();
+    if (!text) return;
+    const lower = text.toLowerCase();
+    let reply;
+    if (/(summar|loaded|my data|dashboard|pattern)/.test(lower) && /(data|loaded|dashboard|summar|pattern)/.test(lower)) {
+      if (power) {
+        reply = { role: 'bot', text: summarizePower(power), src: [['NASA POWER', 'https://power.larc.nasa.gov']], tag: 'Computed from your loaded data' };
+      } else {
+        reply = { role: 'bot', text: 'No data is loaded yet. Open the Dashboard, pick a place and press Load data, then ask me again and I will summarize it.', src: [] };
+      }
+    } else {
+      const hit = answerFromKb(text);
+      if (hit) {
+        reply = { role: 'bot', text: hit.a, src: hit.src, tag: 'From cited sources' };
+      } else {
+        reply = {
+          role: 'bot',
+          text: 'I do not have a sourced answer for that, and I will not guess at measurements. You could try asking about Diviner, polar craters, lunar ice, land surface temperature, NDVI, rainfall or the data sources. For primary data, search NASA Earthdata or the Planetary Data System.',
+          src: [['NASA Earthdata Search', 'https://search.earthdata.nasa.gov'], ['NASA PDS', 'https://pds.nasa.gov']],
+        };
+      }
+    }
+    setMsgs((m) => [...m, { role: 'user', text }, reply]);
+    setInput('');
+  }
+
+  return (
+    <div>
+      <SectionTitle eyebrow="AI Science Assistant" title="Ask about the observations">
+        Plain-language answers grounded in cited sources and in the data you load. It never makes up measurements.
+      </SectionTitle>
+
+      <div className="grid gap-5 lg:grid-cols-[1fr_300px]">
+        <Glass className="flex h-[65vh] min-h-[420px] flex-col p-4">
+          <div className="flex-1 space-y-3 overflow-y-auto pr-1" aria-live="polite">
+            {msgs.map((m, i) => (
+              <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm ${m.role === 'user' ? 'bg-gradient-to-r from-cyan-600/70 to-blue-600/70 text-white' : 'border border-white/10 bg-white/5 text-slate-200'}`}>
+                  <div>{m.text}</div>
+                  {m.tag && <div className="mt-2"><span className="rounded-full border border-cyan-400/40 bg-cyan-500/10 px-2 py-0.5 text-[10px] text-cyan-200">{m.tag}</span></div>}
+                  {m.src && m.src.length > 0 && (
+                    <div className="mt-2 text-xs text-slate-400">
+                      Sources: {m.src.map((s, j) => (
+                        <span key={j}>{j > 0 && ' · '}{s[1].startsWith('#') ? <a className="text-cyan-300 underline" href={s[1]}>{s[0]}</a> : <ExtLink href={s[1]}>{s[0]}</ExtLink>}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+            <div ref={endRef} />
+          </div>
+          <form className="mt-3 flex gap-2" onSubmit={(e) => { e.preventDefault(); ask(input); }}>
+            <input className="field flex-1 !py-2.5" placeholder="Ask about Diviner, lunar ice, NDVI, rainfall…" value={input} onChange={(e) => setInput(e.target.value)} aria-label="Your question" />
+            <button className="btn btn-earth !py-2.5" type="submit">Ask</button>
+          </form>
+        </Glass>
+
+        <div className="space-y-4">
+          <Glass className="p-4">
+            <div className="text-sm font-semibold text-white">Try asking</div>
+            <div className="mt-3 flex flex-col gap-2">
+              {SUGGESTIONS.map((s) => <button key={s} className="chip text-left" onClick={() => ask(s)}>{s}</button>)}
+            </div>
+          </Glass>
+          <Glass className="p-4 text-xs text-slate-300">
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-white">How it stays honest</div>
+            <ul className="list-disc space-y-1 pl-4">
+              <li>Answers come from a curated, cited knowledge base.</li>
+              <li>Data summaries are computed from what you loaded, not recalled.</li>
+              <li>No match means it says so.</li>
+              <li>Measurements and interpretations are named as such.</li>
+            </ul>
+            <div className="mt-3 flex items-center gap-2">{power ? <Badge kind="live" /> : <Badge kind="link" />}<span>{power ? `Data loaded: ${power.name}` : 'No dashboard data loaded'}</span></div>
+          </Glass>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---- pages/About.jsx ----
+
+const CITATIONS = [
+  ['Paige, D. A. et al. (2010). Diviner Lunar Radiometer observations of cold traps in the Moon\'s south polar region. Science, 330, 479–482.', 'https://doi.org/10.1126/science.1187726'],
+  ['Colaprete, A. et al. (2010). Detection of water in the LCROSS ejecta plume. Science, 330, 463–468.', 'https://doi.org/10.1126/science.1186986'],
+  ['Williams, J.-P. et al. (2017). The global surface temperatures of the Moon as measured by the Diviner Lunar Radiometer Experiment. Icarus, 283, 300–325.', 'https://doi.org/10.1016/j.icarus.2016.08.012'],
+  ['Scambos, T. A. et al. (2018). Ultralow surface temperatures in East Antarctica from satellite thermal infrared mapping. Geophysical Research Letters, 45.', 'https://doi.org/10.1029/2018GL079421'],
+  ['World Meteorological Organization. Weather and Climate Extremes Archive.', 'https://wmo.asu.edu/'],
+];
+
+function About() {
+  return (
+    <div>
+      <SectionTitle eyebrow="About and References" title="The problem, the solution, the sources" />
+
+      <div className="grid gap-5 md:grid-cols-2">
+        <Glass className="p-5">
+          <h2 className="text-xl font-bold text-white">The problem</h2>
+          <p className="mt-2 text-sm text-slate-300">
+            Earth's deserts and ice sheets, and the Moon's polar craters, are studied by different missions, in different archives, with different tools. That makes it hard for students, teachers and curious people to see how the two worlds relate, or to tell what was measured from what was inferred.
+          </p>
+        </Glass>
+        <Glass className="p-5">
+          <h2 className="text-xl font-bold text-white">The solution</h2>
+          <p className="mt-2 text-sm text-slate-300">
+            TerraLuna Explorer puts live Earth imagery and climate data, lunar imagery, and published Diviner results into one interface, with every statement tagged as measured, derived, interpretation or illustrative model, and every number tied to a source.
+          </p>
+        </Glass>
+      </div>
+
+      <section className="mt-8">
+        <h2 className="text-2xl font-bold text-white">Data sources</h2>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          {SOURCES.map((s) => (
+            <Glass key={s.id} className="p-4">
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-xs font-semibold text-slate-400">{s.agency}</div>
+                <Badge kind={s.access} />
+              </div>
+              <div className="mt-1 font-semibold text-white">{s.name}</div>
+              <p className="mt-1 text-sm text-slate-300">{s.desc}</p>
+              <div className="mt-2 text-sm"><ExtLink href={s.url}>{s.url} ↗</ExtLink></div>
+            </Glass>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-8 grid gap-5 md:grid-cols-2">
+        <Glass className="p-5">
+          <h2 className="text-xl font-bold text-white">How data is labelled</h2>
+          <ul className="mt-3 space-y-2 text-sm text-slate-300">
+            <li><Badge kind="live" /> fetched from the service when you use the page (GIBS tiles, NASA POWER, NASA CMR, Moon Trek tiles).</li>
+            <li><Badge kind="measured" /> a published value from a cited paper or official archive. It is a stored literature value, not a live query.</li>
+            <li><Badge kind="derived" /> arithmetic on measured values, such as a temperature swing.</li>
+            <li><Badge kind="interpretation" /> a scientific explanation or modelled threshold built on observations.</li>
+            <li><Badge kind="model" /> an illustration for understanding only. The Moon day curve on the Compare page is one.</li>
+          </ul>
+        </Glass>
+        <Glass className="p-5">
+          <h2 className="text-xl font-bold text-white">Known limitations</h2>
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-300">
+            <li>Live layers depend on NASA services. When a date has no tiles or a service is down, the page shows a message instead of fake data.</li>
+            <li>ESA Copernicus, CSA RADARSAT and JAXA G-Portal are linked rather than queried in the browser, because downloads require registration or authentication.</li>
+            <li>Moon temperatures are published summary values. Raw Diviner products are available from the PDS, not processed here.</li>
+            <li>Earth air temperature records and lunar surface temperatures are different physical quantities.</li>
+            <li>The assistant is a retrieval system over a small curated knowledge base, not a general chatbot.</li>
+          </ul>
+        </Glass>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-2xl font-bold text-white">Scientific references</h2>
+        <ul className="mt-3 space-y-2 text-sm text-slate-300">
+          {CITATIONS.map((c) => (
+            <li key={c[1]}>{c[0]} <ExtLink href={c[1]}>Link ↗</ExtLink></li>
+          ))}
+        </ul>
+      </section>
+
+      <section className="mt-8">
+        <Glass className="p-5">
+          <h2 className="text-xl font-bold text-white">Attribution and acknowledgements</h2>
+          <p className="mt-2 text-sm text-slate-300">
+            Imagery courtesy of NASA Global Imagery Browse Services (GIBS), NASA EOSDIS and the MODIS and GPM science teams. Lunar imagery and elevation courtesy of NASA/GSFC/Arizona State University (LROC) and NASA Moon Trek. Climate data from the NASA Langley Research Center POWER Project. Maps by Leaflet. Charts by Recharts.
+          </p>
+          <p className="mt-2 text-sm text-slate-300">
+            ESA Copernicus Sentinel data, CSA RADARSAT data and JAXA satellite data are credited to their agencies and remain subject to their own terms of use. Built for the NASA International Space Apps Challenge. This is an educational project; it is not an official product of NASA, ESA, CSA or JAXA, and use of agency data does not imply endorsement.
+          </p>
+        </Glass>
+      </section>
+    </div>
+  );
+}
+
+// ---- App.jsx ----
+
+const ROUTES = [
+  { path: '/', label: 'Home' },
+  { path: '/earth', label: 'Earth' },
+  { path: '/moon', label: 'Moon' },
+  { path: '/compare', label: 'Compare' },
+  { path: '/dashboard', label: 'Dashboard' },
+  { path: '/assistant', label: 'AI Assistant' },
+  { path: '/about', label: 'About' },
+];
+
+function currentPath() {
+  const p = window.location.hash.replace(/^#/, '') || '/';
+  return ROUTES.some((r) => r.path === p) ? p : '/';
+}
+
+function App() {
+  const [route, setRoute] = useState(currentPath());
+  const [menuOpen, setMenuOpen] = useState(false);
+  // Shared state: the location the user picked on the Earth map, and the latest NASA POWER data loaded.
+  const [point, setPoint] = useState({ lat: -78.46, lon: 106.84, name: 'Vostok Station' });
+  const [power, setPower] = useState(null);
+
+  useEffect(() => {
+    const onHash = () => { setRoute(currentPath()); setMenuOpen(false); window.scrollTo(0, 0); };
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  let page = null;
+  if (route === '/') page = <Home />;
+  else if (route === '/earth') page = <EarthExplorer point={point} setPoint={setPoint} />;
+  else if (route === '/moon') page = <MoonExplorer />;
+  else if (route === '/compare') page = <Compare />;
+  else if (route === '/dashboard') page = <Dashboard point={point} setPoint={setPoint} power={power} setPower={setPower} />;
+  else if (route === '/assistant') page = <Assistant power={power} />;
+  else page = <About />;
+
+  return (
+    <div className="relative min-h-screen">
+      <Starfield />
+      <header className="sticky top-0 z-[1000] border-b border-white/10 bg-[#050816]/75 backdrop-blur-lg">
+        <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3" aria-label="Main">
+          <a href="#/" className="flex items-center gap-2 text-white no-underline">
+            <Logo />
+            <span className="text-lg font-bold tracking-wide">Terra<span className="gradient-text">Luna</span></span>
+          </a>
+          <button className="chip md:hidden" onClick={() => setMenuOpen((o) => !o)} aria-expanded={menuOpen} aria-label="Toggle menu">
+            {menuOpen ? 'Close' : 'Menu'}
+          </button>
+          <ul className="hidden items-center gap-1 md:flex">
+            {ROUTES.map((r) => (
+              <li key={r.path}>
+                <a href={'#' + r.path}
+                  className={`rounded-full px-3.5 py-1.5 text-sm no-underline transition ${route === r.path ? 'bg-cyan-400/15 text-cyan-200' : 'text-slate-300 hover:bg-white/5 hover:text-white'}`}>
+                  {r.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        {menuOpen && (
+          <ul className="flex flex-col gap-1 border-t border-white/10 px-4 py-3 md:hidden">
+            {ROUTES.map((r) => (
+              <li key={r.path}>
+                <a href={'#' + r.path} className={`block rounded-lg px-3 py-2 no-underline ${route === r.path ? 'bg-cyan-400/15 text-cyan-200' : 'text-slate-300'}`}>{r.label}</a>
+              </li>
+            ))}
+          </ul>
+        )}
+      </header>
+
+      <main className="mx-auto max-w-7xl px-4 pb-20 pt-8">{page}</main>
+
+      <footer className="border-t border-white/10 px-4 py-8 text-center text-xs text-slate-400">
+        TerraLuna Explorer · Built for the NASA International Space Apps Challenge · Imagery and data courtesy of NASA, ESA, CSA and JAXA open data programs.
+        <div className="mt-1">This is an educational project and is not an official product of any space agency.</div>
+      </footer>
+    </div>
+  );
+}
+
+// ---- main.jsx ----
+
+createRoot(document.getElementById('root')).render(<App />);
+})();
+
+</script>
+</body>
+</html>
